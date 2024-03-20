@@ -12,3 +12,12 @@ export_resources(
         default.vert
         default.frag
 )
+
+export_resources(
+    TARGET resources
+    DIRECTORY Textures
+    DEPENDS
+        dungeon-tiles.png
+        pickaxe.png
+        ATTRIBUTION.md
+)

@@ -1,0 +1,6 @@
+[submodule "ext/Glad"]
+	path = ext/Glad
+	url = https://github.com/XakNitram/Glad.git
+[submodule "ext/GLFW"]
+	path = ext/GLFW
+	url = https://github.com/glfw/glfw.git

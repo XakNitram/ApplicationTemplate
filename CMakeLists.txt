@@ -1,5 +1,5 @@
-cmake_minimum_required(VERSION 3.24)
-project(Template VERSION 0.0.0 LANGUAGES CXX)
+cmake_minimum_required(VERSION 3.28)
+project(Miners VERSION 0.0.1 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 
