@@ -1,7 +1,7 @@
 #include "lwvl/lwvl.hpp"
 
 namespace lwvl {
-    const char *source_to_string(GLenum source) {
+    const char *source_to_string(const GLenum source) {
         switch(source) {
             case GL_DEBUG_SOURCE_API:
                 return "[API]";
@@ -20,11 +20,15 @@ namespace lwvl {
         }
     }
 
-    void draw_arrays(GLenum mode, GLsizei count, GLint first) {
+    void clear() {
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    }
+
+    void draw_arrays(const GLenum mode, const GLsizei count, const GLint first) {
         glDrawArrays(mode, first, count);
     }
 
-    void draw_elements(GLenum mode, GLsizei count, GLenum type) {
+    void draw_elements(const GLenum mode, const GLsizei count, const GLenum type) {
         glDrawElements(mode, count, type, nullptr);
     }
 }

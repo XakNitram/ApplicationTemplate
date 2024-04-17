@@ -1,40 +1,7 @@
 #include "pch.hpp"
 import Window;
-import Structures;
 
-// 3D space for lighting calculations. For calculating the light on the vertical wall textures,
-//   calculate the floor light at 1/4 the vertical resolution, and the wall light at 3/4 the vertical resolution.
-
-// We are attempting to find new ways to lay out our code that provide the greatest flexibility.
-// Code layout concepts:
-// . Callbacks
-// . Information hiding
-// . Encapsulation
-
-// GLFW has callbacks.
-// . Pull the events out of a general callback
-// . Pass a global state object to a customized callback.
-// . Basically, how do we subvert callbacks?
-//   . Push events to Lua, handle them there.
-//   . What is a callback, fundamentally?
-//     . A way for libraries to allow arbitrary code execution given a standard interface.
-
-// Parameters have to be added to every function, but passing structs instead of parameters means only one place has to change.
-// . However, are there downsides to passing structs around?
-//   . Members of a struct have to initialized same as parameters.
-// . Structs can accept arbitrary data that isn't necessarily needed in the function.
-//   . Good way to abstract across Vulkan/DX12/OpenGL?
-//     . Perhaps for function calls, but doesn't answer how we would handle objects and memory there.
-
-// I'm not sure ECS is the optimal way to go. Having all the transforms in a scene being together is beneficial for iteration, but we don't need an array of damage value components.
-//   Instead of trying to find a way to relate values to justify a component, random values should be in some kind of lru cache.
-// . However, great care needs to be taken here to ensure gameplay development is easy. ECS is a workflow unity and unreal devs are familiar with.
-//   . What's the problem?
-//   . Too much focus on deconstructing game objects into individual variables will probably lead to us being unable to reason about the system or how to change it.
-
-// std::expected is nice. Simplifies our error returns and allows for situations without simple invalid values. For those cases right now we can use std::optional, which has the same funky value-extraction syntax.
-
-// Good idea: You can send your own messages in Stalker chat, maybe someone can respond.
+// Learn data structures
 
 
 struct Vertex {
@@ -44,9 +11,9 @@ struct Vertex {
     //float u = 0.0f;
     //float v = 0.0f;
 
-    //float r = 0.0;
+    //float r = 0.0f;
     //float g = 0.39215686274509803f;
-    //float b = 0.0;
+    //float b = 0.0f;
 };
 
 
@@ -101,7 +68,7 @@ struct SquareIndices {
 
 struct Miner {
     uint32_t id = 0;
-    uint32_t index = 0;
+    int64_t index = 0;
     float x{0.0f};
     float y{0.0f};
 };
@@ -194,39 +161,37 @@ constexpr uint64_t TEXTURE_ROWS = 5;
 constexpr float TCS = 1.0f / static_cast<float>(TEXTURE_COLUMNS);
 constexpr float TRS = 1.0f / static_cast<float>(TEXTURE_ROWS);
 constexpr TextureMap STONE_TEXTURE_MAP{
-    TexCoordCell{{0.0f, TRS * 3},    {TCS, TRS * 3},     {TCS, TRS * 4},     {0.0f, TRS * 4}   }, // 0b0000
+    TexCoordCell{{0.0f, TRS * 3}, {TCS, TRS * 3}, {TCS, TRS * 4}, {0.0f, TRS * 4}}, // 0b0000
     TexCoordCell{{TCS * 2, TRS * 2}, {TCS * 3, TRS * 2}, {TCS * 3, TRS * 3}, {TCS * 2, TRS * 3}}, // 0b0001
-    TexCoordCell{{0.0f, TRS * 2},    {TCS, TRS * 2},     {TCS, TRS * 3},     {0.0f, TRS * 3}   }, // 0b0010
-    TexCoordCell{{TCS, TRS * 2},     {TCS * 2, TRS * 2}, {TCS * 2, TRS * 3}, {TCS, TRS * 3}    }, // 0b0011
-    TexCoordCell{{0.0f, TRS},        {TCS, TRS},         {TCS, TRS * 1},     {0.0f, TRS * 1}   },
- // 0b0100
-    TexCoordCell{{TCS * 3, TRS},     {TCS * 4, TRS},     {TCS * 4, TRS * 1}, {TCS * 3, TRS * 1}}, // 0b0101
-    TexCoordCell{{0.0f, TRS * 1},    {TCS, TRS * 1},     {TCS, TRS * 2},     {0.0f, TRS * 2}   }, // 0b0110
+    TexCoordCell{{0.0f, TRS * 2}, {TCS, TRS * 2}, {TCS, TRS * 3}, {0.0f, TRS * 3}}, // 0b0010
+    TexCoordCell{{TCS, TRS * 2}, {TCS * 2, TRS * 2}, {TCS * 2, TRS * 3}, {TCS, TRS * 3}}, // 0b0011
+    TexCoordCell{{0.0f, TRS}, {TCS, TRS}, {TCS, TRS * 1}, {0.0f, TRS * 1}}, // 0b0100
+    TexCoordCell{{TCS * 3, TRS}, {TCS * 4, TRS}, {TCS * 4, TRS * 1}, {TCS * 3, TRS * 1}}, // 0b0101
+    TexCoordCell{{0.0f, TRS * 1}, {TCS, TRS * 1}, {TCS, TRS * 2}, {0.0f, TRS * 2}}, // 0b0110
     TexCoordCell{{TCS * 4, TRS * 1}, {TCS * 5, TRS * 1}, {TCS * 5, TRS * 2}, {TCS * 4, TRS * 2}}, // 0b0111
-    TexCoordCell{{TCS * 2, TRS},     {TCS * 3, TRS},     {TCS * 3, TRS * 1}, {TCS * 2, TRS * 1}}, // 0b1000
+    TexCoordCell{{TCS * 2, TRS}, {TCS * 3, TRS}, {TCS * 3, TRS * 1}, {TCS * 2, TRS * 1}}, // 0b1000
     TexCoordCell{{TCS * 2, TRS * 1}, {TCS * 3, TRS * 1}, {TCS * 3, TRS * 2}, {TCS * 2, TRS * 2}}, // 0b1001
-    TexCoordCell{{TCS * 4, TRS},     {TCS * 5, TRS},     {TCS * 5, TRS * 1}, {TCS * 4, TRS * 1}}, // 0b1010
+    TexCoordCell{{TCS * 4, TRS}, {TCS * 5, TRS}, {TCS * 5, TRS * 1}, {TCS * 4, TRS * 1}}, // 0b1010
     TexCoordCell{{TCS * 3, TRS * 1}, {TCS * 4, TRS * 1}, {TCS * 4, TRS * 2}, {TCS * 3, TRS * 2}}, // 0b1011
-    TexCoordCell{{TCS, 0.0f},        {TCS * 2, 0.0f},    {TCS * 2, TRS},     {TCS, TRS}        },
- // 0b1100
+    TexCoordCell{{TCS, 0.0f}, {TCS * 2, 0.0f}, {TCS * 2, TRS}, {TCS, TRS}}, // 0b1100
     TexCoordCell{{TCS * 3, TRS * 2}, {TCS * 4, TRS * 2}, {TCS * 4, TRS * 3}, {TCS * 3, TRS * 3}}, // 0b1101
     TexCoordCell{{TCS * 4, TRS * 2}, {TCS * 5, TRS * 2}, {TCS * 5, TRS * 3}, {TCS * 4, TRS * 3}}, // 0b1110
-    TexCoordCell{{TCS, TRS * 1},     {TCS * 2, TRS * 1}, {TCS * 2, TRS * 2}, {TCS, TRS * 2}    }, // 0b1111
+    TexCoordCell{{TCS, TRS * 1}, {TCS * 2, TRS * 1}, {TCS * 2, TRS * 2}, {TCS, TRS * 2}}, // 0b1111
 };
 
-constexpr std::array<uint8_t, 256> RANDOM_ARRAY{
-    56,  133, 226, 14,  244, 249, 104, 48,  248, 16,  230, 96,  202, 0,   153, 224, 240, 109, 63,  234, 173, 74,
-    127, 200, 186, 8,   112, 241, 59,  110, 77,  118, 180, 141, 251, 213, 252, 164, 128, 183, 95,  169, 36,  172,
-    94,  193, 19,  201, 235, 196, 145, 83,  150, 167, 79,  146, 191, 55,  35,  154, 92,  1,   211, 220, 10,  117,
-    143, 136, 129, 181, 51,  120, 53,  28,  88,  242, 106, 76,  208, 195, 123, 165, 205, 149, 4,   12,  91,  237,
-    184, 250, 218, 69,  45,  115, 103, 34,  81,  102, 39,  50,  68,  214, 90,  15,  5,   215, 49,  24,  84,  178,
-    47,  54,  177, 229, 46,  204, 121, 107, 42,  99,  245, 219, 29,  174, 58,  111, 247, 37,  156, 217, 71,  210,
-    187, 70,  119, 185, 32,  227, 179, 231, 116, 98,  78,  11,  100, 17,  168, 188, 159, 52,  131, 64,  89,  192,
-    158, 2,   22,  43,  144, 232, 72,  253, 151, 87,  135, 114, 61,  23,  166, 170, 132, 85,  13,  38,  93,  65,
-    18,  194, 25,  140, 134, 225, 161, 125, 21,  62,  206, 223, 41,  171, 101, 3,   57,  147, 182, 137, 152, 139,
-    197, 7,   189, 209, 122, 20,  212, 105, 203, 198, 130, 97,  175, 31,  82,  246, 155, 190, 124, 86,  108, 33,
-    254, 6,   73,  80,  255, 148, 160, 142, 40,  176, 216, 207, 44,  238, 9,   163, 228, 199, 30,  66,  67,  221,
-    26,  126, 138, 233, 27,  113, 157, 236, 239, 162, 243, 60,  75,  222
+constexpr std::array<uint8_t, 256> RANDOM_ARRAY {
+    56, 133, 226, 14, 244, 249, 104, 48, 248, 16, 230, 96, 202, 0, 153, 224, 240, 109, 63, 234, 173, 74,
+    127, 200, 186, 8, 112, 241, 59, 110, 77, 118, 180, 141, 251, 213, 252, 164, 128, 183, 95, 169, 36, 172,
+    94, 193, 19, 201, 235, 196, 145, 83, 150, 167, 79, 146, 191, 55, 35, 154, 92, 1, 211, 220, 10, 117,
+    143, 136, 129, 181, 51, 120, 53, 28, 88, 242, 106, 76, 208, 195, 123, 165, 205, 149, 4, 12, 91, 237,
+    184, 250, 218, 69, 45, 115, 103, 34, 81, 102, 39, 50, 68, 214, 90, 15, 5, 215, 49, 24, 84, 178,
+    47, 54, 177, 229, 46, 204, 121, 107, 42, 99, 245, 219, 29, 174, 58, 111, 247, 37, 156, 217, 71, 210,
+    187, 70, 119, 185, 32, 227, 179, 231, 116, 98, 78, 11, 100, 17, 168, 188, 159, 52, 131, 64, 89, 192,
+    158, 2, 22, 43, 144, 232, 72, 253, 151, 87, 135, 114, 61, 23, 166, 170, 132, 85, 13, 38, 93, 65,
+    18, 194, 25, 140, 134, 225, 161, 125, 21, 62, 206, 223, 41, 171, 101, 3, 57, 147, 182, 137, 152, 139,
+    197, 7, 189, 209, 122, 20, 212, 105, 203, 198, 130, 97, 175, 31, 82, 246, 155, 190, 124, 86, 108, 33,
+    254, 6, 73, 80, 255, 148, 160, 142, 40, 176, 216, 207, 44, 238, 9, 163, 228, 199, 30, 66, 67, 221,
+    26, 126, 138, 233, 27, 113, 157, 236, 239, 162, 243, 60, 75, 222
 };
 
 uint8_t doom_random() {
@@ -242,9 +207,7 @@ void compile_shader_from_file(const lwvl::Shader &_shader, const std::string &pa
         std::stringstream output_stream;
 
         std::string line;
-        while (getline(file, line)) {
-            output_stream << line << '\n';
-        }
+        while (getline(file, line)) { output_stream << line << '\n'; }
         return output_stream.str();
     }(path)};
 
@@ -300,30 +263,22 @@ uint8_t select_texture(const std::ptrdiff_t i, const std::ptrdiff_t j, const uin
     uint8_t texture_selector{0};
 
     //texture_selector |= (i == 0 || j == 0 ? 0x1 : (board[(i - 1) * BOARD_SIZE + (j - 1)] > 0));
-    if (i == 0 || j == 0) {
-        texture_selector |= 0x1;
-    } else {
+    if (i == 0 || j == 0) { texture_selector |= 0x1; } else {
         texture_selector |= board[(i - 1) * BOARD_SIZE + (j - 1)] > 0;
     }
 
     //texture_selector |= (i == 0 || j == grid_limit ? 0x2 : (board[(i - 1) * BOARD_SIZE + j] > 0) << 1);
-    if (i == 0 || j == grid_limit) {
-        texture_selector |= 0x2;
-    } else {
+    if (i == 0 || j == grid_limit) { texture_selector |= 0x2; } else {
         texture_selector |= (board[(i - 1) * BOARD_SIZE + j] > 0) << 1;
     }
 
     //texture_selector |= (i == grid_limit || j == grid_limit ? 0x4 : (board[i * BOARD_SIZE + j] > 0) << 2);
-    if (i == grid_limit || j == grid_limit) {
-        texture_selector |= 0x4;
-    } else {
+    if (i == grid_limit || j == grid_limit) { texture_selector |= 0x4; } else {
         texture_selector |= (board[i * BOARD_SIZE + j] > 0) << 2;
     }
 
     //texture_selector |= (i == grid_limit || j == 0 ? 0x8 : (board[i * BOARD_SIZE + (j - 1)] > 0) << 3);
-    if (i == grid_limit || j == 0) {
-        texture_selector |= 0x8;
-    } else {
+    if (i == grid_limit || j == 0) { texture_selector |= 0x8; } else {
         texture_selector |= (board[i * BOARD_SIZE + (j - 1)] > 0) << 3;
     }
 
@@ -344,6 +299,22 @@ struct GridRenderPipeline {
     lwvl::Buffer vbo{};
     lwvl::Buffer vtcbo{};
     lwvl::Buffer veo{};
+
+    void construct(const GridTexCoords &grid_tex_coords) const {
+        lwvl::Buffer::const_fill(vbo, GRID_MODEL.begin(), GRID_MODEL.end());
+        lwvl::Buffer::const_fill(veo, GRID_INDICES.begin(), GRID_INDICES.end());
+        lwvl::Buffer::const_fill(vtcbo, grid_tex_coords.begin(), grid_tex_coords.end());
+
+        lwvl::VertexArray::add_buffer(vao, vbo, 0, sizeof(Vertex));
+        lwvl::VertexArray::add_element_buffer(vao, veo);
+        lwvl::VertexArray::add_attribute(vao, 0, 2, GL_FLOAT, offsetof(Vertex, x));
+        lwvl::VertexArray::use_binding(vao, 0, 0);
+        //lwvl::VertexArray::add_attribute(vao, 1, 3, GL_FLOAT, offsetof(Vertex, r));
+        //lwvl::VertexArray::add_attribute(vao, 1, 2, GL_FLOAT, offsetof(Vertex, u));
+        lwvl::VertexArray::add_buffer(vao, vtcbo, 1, sizeof(TexCoord));
+        lwvl::VertexArray::add_attribute(vao, 1, 2, GL_FLOAT, offsetof(TexCoord, u));
+        lwvl::VertexArray::use_binding(vao, 1, 1);
+    }
 };
 
 
@@ -351,36 +322,70 @@ struct SpriteRenderPipeline {
     lwvl::VertexArray vao{};
     lwvl::Buffer vbo{};
     lwvl::Buffer veo{};
+
+    void construct(const std::vector<SpriteCell> &sprite_vertices, const std::vector<SquareIndices> &sprite_indices) const {
+        lwvl::Buffer::const_fill(vbo, sprite_vertices.begin(), sprite_vertices.end());
+        lwvl::Buffer::const_fill(veo, sprite_indices.begin(), sprite_indices.end());
+
+        lwvl::VertexArray::add_buffer(vao, vbo, 0, sizeof(SpriteVertex));
+        lwvl::VertexArray::add_element_buffer(vao, veo);
+        lwvl::VertexArray::add_attribute(vao, 0, 2, GL_FLOAT, offsetof(SpriteVertex, x));
+        lwvl::VertexArray::add_attribute(vao, 1, 2, GL_FLOAT, offsetof(SpriteVertex, u));
+        lwvl::VertexArray::use_binding(vao, 0, 0);
+        lwvl::VertexArray::use_binding(vao, 0, 1);
+    }
 };
 
 
 struct MinerRenderPipeline {
     lwvl::VertexArray vao{};
     lwvl::Buffer vbo{};
+
+    void construct(const std::vector<MinerCell> &miner_vertices) const {
+        lwvl::Buffer::const_fill(vbo, miner_vertices.begin(), miner_vertices.end());
+
+        lwvl::VertexArray::add_buffer(vao, vbo, 0, sizeof(SpriteVertex));
+        lwvl::VertexArray::add_attribute(vao, 0, 2, GL_FLOAT, offsetof(SpriteVertex, x));
+        lwvl::VertexArray::add_attribute(vao, 1, 2, GL_FLOAT, offsetof(SpriteVertex, u));
+        lwvl::VertexArray::use_binding(vao, 0, 0);
+        lwvl::VertexArray::use_binding(vao, 0, 1);
+    }
 };
 
 
 int run() {
-    glfwSetErrorCallback([](int code, const char *message) { std::cerr << message << '\n'; });
-
-    if (!glfwInit()) {
-        std::cerr << "Failed to initialize GLFW." << '\n';
-        return 1;
-    }
-
-    core::WindowStatus window_create_status;
+    core::Window::Status window_create_status;
     constexpr int window_width{1920};
     constexpr int window_height{1080};
-    const core::Window window{core::window_create(window_width, window_height, "Miners", window_create_status)};
-    if (window_create_status != core::WindowStatus::Success) {
-        std::cerr << "Unable to create GLFW window." << '\n';
-        return 1;
+    const core::Window window{window_create_status, core::Hints{"Miners", window_width, window_height}};
+    {
+        using enum core::Window::Status;
+        if (window_create_status != Success) {
+            if (window_create_status == GLFWUninitialized) { std::cerr << "Unable to initialize GLFW.\n"; } else if (
+                window_create_status ==
+                ContextCreationFailed) { std::cerr << "Unable to create OpenGL context.\n"; } else {
+                std::cerr << "Unable to create window.\n";
+            }
+            return 1;
+        }
     }
 
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    ImGuiIO &io {ImGui::GetIO()};
+    (void)io;
+    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
+    io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
+
+    ImGui::StyleColorsDark();
+    // ImGuiStyle &style {ImGui::GetStyle()};
+    ImGui_ImplGlfw_InitForOpenGL(static_cast<GLFWwindow*>(window), true);
+    ImGui_ImplOpenGL3_Init("#version 460 core");
+
+    bool show_demo_window = false;
+
     auto board{std::make_unique<Board>()};
-    for (std::ptrdiff_t i = 0; i < BOARD_SIZE * BOARD_SIZE; ++i) {
-        (*board)[i] = 0;
-    }
+    for (std::ptrdiff_t i = 0; i < BOARD_SIZE * BOARD_SIZE; ++i) { (*board)[i] = 0; }
 
     std::vector<Miner> miners{4};
     for (std::ptrdiff_t i = 0; i < 4; ++i) {
@@ -399,12 +404,15 @@ int run() {
         const float base_x = (static_cast<float>(n) + 0.5f) * cell_size - 0.5f;
         const float base_y = (static_cast<float>(m) + 0.5f) * cell_size - 0.5f;
         miner_vertices.emplace_back(MinerCell{
-            {base_x,             base_y,             0.0f, 0.0f},
-            {base_x + cell_size, base_y,             1.0f, 0.0f},
+            {base_x, base_y, 0.0f, 0.0f},
+            {base_x + cell_size, base_y, 1.0f, 0.0f},
             {base_x + cell_size, base_y + cell_size, 1.0f, 1.0f},
-            {base_x,             base_y + cell_size, 0.0f, 1.0f}
+            {base_x, base_y + cell_size, 0.0f, 1.0f}
         });
     }
+
+    // to move the miners we need to update the miner object in "miners" and the vertices in "miner_vertices"
+    // we also need to check for valid moves in "board"
 
     auto grid_tex_coords{std::make_unique<GridTexCoords>()};
     for (std::ptrdiff_t i = 0; i < GRID_SIZE; ++i) {
@@ -426,10 +434,10 @@ int run() {
                 const float base_x = (static_cast<float>(j) + 0.5f) * cell_size - 0.5f;
                 const float base_y = (static_cast<float>(i) + 0.5f) * cell_size - 0.5f;
                 sprite_vertices.emplace_back(SpriteCell{
-                    {base_x,             base_y,             TCS * 3, TRS * 4},
-                    {base_x + cell_size, base_y,             TCS * 4, TRS * 4},
+                    {base_x, base_y, TCS * 3, TRS * 4},
+                    {base_x + cell_size, base_y, TCS * 4, TRS * 4},
                     {base_x + cell_size, base_y + cell_size, TCS * 4, TRS * 5},
-                    {base_x,             base_y + cell_size, TCS * 3, TRS * 5}
+                    {base_x, base_y + cell_size, TCS * 3, TRS * 5}
                 });
 
                 const uint32_t base_index{static_cast<uint32_t>(sprite_indices.size()) * 4};
@@ -444,6 +452,7 @@ int run() {
         []([[maybe_unused]] const GLenum source, [[maybe_unused]] const GLenum type, [[maybe_unused]] GLuint id,
            [[maybe_unused]] GLenum severity, [[maybe_unused]] GLsizei length, [[maybe_unused]] const GLchar *message,
            [[maybe_unused]] const void *userParam) {
+            if (severity == GL_DEBUG_SEVERITY_NOTIFICATION) { return; }
             auto *stream = &std::cout;
             if (type == GL_DEBUG_TYPE_ERROR) { stream = &std::cerr; }
             *stream << "[OpenGL]" << lwvl::source_to_string(source) << ' ' << message << '\n';
@@ -458,44 +467,13 @@ int run() {
 
 
     const GridRenderPipeline grid_pipeline{};
-
-    lwvl::Buffer::const_fill(grid_pipeline.vbo, GRID_MODEL.begin(), GRID_MODEL.end());
-    lwvl::Buffer::const_fill(grid_pipeline.veo, GRID_INDICES.begin(), GRID_INDICES.end());
-    lwvl::Buffer::const_fill(grid_pipeline.vtcbo, grid_tex_coords->begin(), grid_tex_coords->end());
-
-    lwvl::VertexArray::add_buffer(grid_pipeline.vao, grid_pipeline.vbo, 0, sizeof(Vertex));
-    lwvl::VertexArray::add_element_buffer(grid_pipeline.vao, grid_pipeline.veo);
-    lwvl::VertexArray::add_attribute(grid_pipeline.vao, 0, 2, GL_FLOAT, offsetof(Vertex, x));
-    lwvl::VertexArray::use_binding(grid_pipeline.vao, 0, 0);
-    //lwvl::VertexArray::add_attribute(vao, 1, 3, GL_FLOAT, offsetof(Vertex, r));
-    //lwvl::VertexArray::add_attribute(vao, 1, 2, GL_FLOAT, offsetof(Vertex, u));
-    lwvl::VertexArray::add_buffer(grid_pipeline.vao, grid_pipeline.vtcbo, 1, sizeof(TexCoord));
-    lwvl::VertexArray::add_attribute(grid_pipeline.vao, 1, 2, GL_FLOAT, offsetof(TexCoord, u));
-    lwvl::VertexArray::use_binding(grid_pipeline.vao, 1, 1);
-
+    grid_pipeline.construct(*grid_tex_coords);
 
     const SpriteRenderPipeline sprite_pipeline{};
-
-    lwvl::Buffer::const_fill(sprite_pipeline.vbo, sprite_vertices.begin(), sprite_vertices.end());
-    lwvl::Buffer::const_fill(sprite_pipeline.veo, sprite_indices.begin(), sprite_indices.end());
-
-    lwvl::VertexArray::add_buffer(sprite_pipeline.vao, sprite_pipeline.vbo, 0, sizeof(SpriteVertex));
-    lwvl::VertexArray::add_element_buffer(sprite_pipeline.vao, sprite_pipeline.veo);
-    lwvl::VertexArray::add_attribute(sprite_pipeline.vao, 0, 2, GL_FLOAT, offsetof(SpriteVertex, x));
-    lwvl::VertexArray::add_attribute(sprite_pipeline.vao, 1, 2, GL_FLOAT, offsetof(SpriteVertex, u));
-    lwvl::VertexArray::use_binding(sprite_pipeline.vao, 0, 0);
-    lwvl::VertexArray::use_binding(sprite_pipeline.vao, 0, 1);
-
+    sprite_pipeline.construct(sprite_vertices, sprite_indices);
 
     const MinerRenderPipeline miner_pipeline{};
-
-    lwvl::Buffer::const_fill(miner_pipeline.vbo, miner_vertices.begin(), miner_vertices.end());
-
-    lwvl::VertexArray::add_buffer(miner_pipeline.vao, miner_pipeline.vbo, 0, sizeof(SpriteVertex));
-    lwvl::VertexArray::add_attribute(miner_pipeline.vao, 0, 2, GL_FLOAT, offsetof(SpriteVertex, x));
-    lwvl::VertexArray::add_attribute(miner_pipeline.vao, 1, 2, GL_FLOAT, offsetof(SpriteVertex, u));
-    lwvl::VertexArray::use_binding(miner_pipeline.vao, 0, 0);
-    lwvl::VertexArray::use_binding(miner_pipeline.vao, 0, 1);
+    miner_pipeline.construct(miner_vertices);
 
     //const MinerRenderPipeline miner_pipeline {};
     //lwvl::buffer_const_fill(miner_pipeline.vbo);
@@ -511,12 +489,12 @@ int run() {
             return 1;
         }
 
-        glTextureParameteri(static_cast<GLuint>(vto), GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-        glTextureParameteri(static_cast<GLuint>(vto), GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-        glTextureParameteri(static_cast<GLuint>(vto), GL_TEXTURE_WRAP_S, GL_REPEAT);
-        glTextureParameteri(static_cast<GLuint>(vto), GL_TEXTURE_WRAP_T, GL_REPEAT);
-        glTextureStorage2D(static_cast<GLuint>(vto), 1, GL_RGBA8, width, height);
-        glTextureSubImage2D(static_cast<GLuint>(vto), 0, 0, 0, width, height, GL_RGBA, GL_UNSIGNED_BYTE, data);
+        glTextureParameteri(GLuint{vto}, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+        glTextureParameteri(GLuint{vto}, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        glTextureParameteri(GLuint{vto}, GL_TEXTURE_WRAP_S, GL_REPEAT);
+        glTextureParameteri(GLuint{vto}, GL_TEXTURE_WRAP_T, GL_REPEAT);
+        glTextureStorage2D(GLuint{vto}, 1, GL_RGBA8, width, height);
+        glTextureSubImage2D(GLuint{vto}, 0, 0, 0, width, height, GL_RGBA, GL_UNSIGNED_BYTE, data);
         stbi_image_free(data);
     }
 
@@ -538,13 +516,13 @@ int run() {
         // Flip for OpenGL
         stbi_vertical_flip(data, width, height, nr_channels);
 
-        glTextureParameteri(static_cast<GLuint>(miner_texture), GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-        glTextureParameteri(static_cast<GLuint>(miner_texture), GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-        glTextureParameteri(static_cast<GLuint>(miner_texture), GL_TEXTURE_WRAP_S, GL_REPEAT);
-        glTextureParameteri(static_cast<GLuint>(miner_texture), GL_TEXTURE_WRAP_T, GL_REPEAT);
-        glTextureStorage2D(static_cast<GLuint>(miner_texture), 1, GL_RGBA8, width, height);
+        glTextureParameteri(GLuint{miner_texture}, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+        glTextureParameteri(GLuint{miner_texture}, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        glTextureParameteri(GLuint{miner_texture}, GL_TEXTURE_WRAP_S, GL_REPEAT);
+        glTextureParameteri(GLuint{miner_texture}, GL_TEXTURE_WRAP_T, GL_REPEAT);
+        glTextureStorage2D(GLuint{miner_texture}, 1, GL_RGBA8, width, height);
         glTextureSubImage2D(
-            static_cast<GLuint>(miner_texture), 0, 0, 0, width, height, GL_RGBA, GL_UNSIGNED_BYTE, data
+            GLuint{miner_texture}, 0, 0, 0, width, height, GL_RGBA, GL_UNSIGNED_BYTE, data
         );
 
         stbi_image_free(data);
@@ -568,98 +546,133 @@ int run() {
             return -1;
         }
 
-        lwvl::Program::LinkStatus status;
+        lwvl::Program::LinkStatus status{};
         lwvl::Program::link(vso, stages, stage_count, status);
+        if (status != lwvl::Program::LinkStatus::Success) {
+            if (status == lwvl::Program::LinkStatus::ValidationFailure) {
+                std::cerr << "Failed to validate program.\n";
+            } else { std::cerr << "Failed to link program.\n"; }
+            return 1;
+        }
     }
 
     //lwvl::program_activate(vso);
-    const GLint u_projection{glGetUniformLocation(static_cast<GLuint>(vso), "u_projection")};
+    const GLint u_projection{glGetUniformLocation(GLuint{vso}, "u_projection")};
     if (u_projection < 0) {
-        std::cerr << "Unable to find Projection uniform." << '\n';
+        std::cerr << "Unable to find Projection uniform.\n";
         return 1;
     }
-    glProgramUniformMatrix4fv(static_cast<GLuint>(vso), u_projection, 1, GL_FALSE, projection.data());
+    glProgramUniformMatrix4fv(GLuint{vso}, u_projection, 1, GL_FALSE, projection.data());
 
-    const GLint u_scale{glGetUniformLocation(static_cast<GLuint>(vso), "u_scale")};
+    const GLint u_scale{glGetUniformLocation(GLuint{vso}, "u_scale")};
     if (u_scale < 0) {
-        std::cerr << "Unable to find Scale uniform." << '\n';
+        std::cerr << "Unable to find Scale uniform.\n";
         return 1;
     }
-    glProgramUniform1f(static_cast<GLuint>(vso), u_scale, 2);
+    glProgramUniform1f(GLuint{vso}, u_scale, 2);
 
     const GLint u_texture{lwvl::Program::uniform_location(vso, "u_texture")};
     if (u_texture < 0) {
-        std::cerr << "Unable to find texture sampler uniform." << '\n';
+        std::cerr << "Unable to find texture sampler uniform.\n";
         return 1;
     }
-    glProgramUniform1i(static_cast<GLuint>(vso), u_texture, 0);
+    glProgramUniform1i(GLuint{vso}, u_texture, 0);
 
     const GLint u_use_texture{lwvl::Program::uniform_location(vso, "u_use_texture")};
     if (u_use_texture < 0) {
         std::cerr << "Unable to find texture sampler uniform." << '\n';
         return 1;
     }
-    glProgramUniform1i(static_cast<GLuint>(vso), u_use_texture, 1);
+    glProgramUniform1i(GLuint{vso}, u_use_texture, 1);
 
-    //const GLint u_time { glGetUniformLocation(static_cast<GLuint>(grid_pipeline.vso), "u_Time") };
-    //if (u_time < 0) {
-    //    std::cerr << "Unable to find Time uniform." << '\n';
-    //    return 1;
-    //}
-    //glProgramUniform1f(static_cast<GLuint>(grid_pipeline.vso), u_time, 0.0f);
+    // const GLint u_time { lwvl::Program::uniform_location(vso, "u_Time") };
+    // if (u_time < 0) {
+    //     std::cerr << "Unable to find Time uniform." << '\n';
+    //     return 1;
+    // }
+    // glProgramUniform1f(GLuint{vso}, u_time, 0.0f);
 
-    //const GLint u_resolution { glGetUniformLocation(static_cast<GLuint>(grid_pipeline.vso), "u_Resolution") };
-    //if (u_resolution < 0) {
-    //    std::cerr << "Unable to find Resolution uniform." << '\n';
-    //    return 1;
-    //}
-    //glProgramUniform2d(static_cast<GLuint>(grid_pipeline.vso), u_resolution, 800.0, 600.0);
+    // const GLint u_resolution { lwvl::Program::uniform_location(vso, "u_Resolution") };
+    // if (u_resolution < 0) {
+    //     std::cerr << "Unable to find Resolution uniform." << '\n';
+    //     return 1;
+    // }
+    // glProgramUniform2d(GLuint{vso}, u_resolution, 800.0, 600.0);
 
     //glPolygonMode( GL_FRONT_AND_BACK, GL_LINE );
-    glClearColor(0.24314f, 0.25490f, 0.30588f, 1.0f);
 
-    glBindTextureUnit(0, static_cast<GLuint>(vto));
-    glBindTextureUnit(1, static_cast<GLuint>(miner_texture));
+    glBindTextureUnit(0, GLuint{vto});
+    glBindTextureUnit(1, GLuint{miner_texture});
 
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glClearColor(0.24314f, 0.25490f, 0.30588f, 1.0f);
+
+    int display_w, display_h;
+    glfwGetFramebufferSize(static_cast<GLFWwindow*>(window), &display_w, &display_h);
 
     //const auto time_point = std::chrono::high_resolution_clock::now();
-    while (!core::window_should_close(window)) {
-        core::glfw_update();
-        core::window_clear();
+    while (!window.should_close()) {
+        core::Window::poll_events();
+        ImGui_ImplOpenGL3_NewFrame();
+        ImGui_ImplGlfw_NewFrame();
+        ImGui::NewFrame();
+
+        // ImGui::ShowMetricsWindow();
+
+        if (show_demo_window) { ImGui::ShowDemoWindow(&show_demo_window); }
+
+        {
+            ImGui::Begin("Hello, world!");                          // Create a window called "Hello, world!" and append into it.
+            ImGui::Checkbox("Demo Window", &show_demo_window);      // Edit bools storing our window open/close state
+
+            ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
+            ImGui::End();
+        }
+
+        ImGui::Render();
+        int new_display_w, new_display_h;
+        glfwGetFramebufferSize(static_cast<GLFWwindow*>(window), &new_display_w, &new_display_h);
+        if (new_display_w != display_w || new_display_h != display_h) {
+            glViewport(0, 0, display_w, display_h);
+            display_w = new_display_w;
+            display_h = new_display_h;
+        }
+
+        lwvl::clear();
+
         lwvl::Program::activate(vso);
         //glProgramUniform1f(static_cast<GLuint>(grid_pipeline.vso), u_time, float(delta(time_point)));
 
-        glProgramUniform1i(static_cast<GLuint>(vso), u_texture, 0);
+        glProgramUniform1i(GLuint{vso}, u_texture, 0);
         lwvl::VertexArray::activate(grid_pipeline.vao);
         lwvl::draw_elements(GL_TRIANGLES, GRID_SIZE * GRID_SIZE * 6, GL_UNSIGNED_INT);
 
         lwvl::VertexArray::activate(sprite_pipeline.vao);
         lwvl::draw_elements(GL_TRIANGLES, static_cast<GLsizei>(sprite_indices.size() * 6), GL_UNSIGNED_INT);
 
-        glProgramUniform1i(static_cast<GLuint>(vso), u_texture, 1);
+        glProgramUniform1i(GLuint{vso}, u_texture, 1);
         lwvl::VertexArray::activate(miner_pipeline.vao);
         lwvl::draw_arrays(GL_TRIANGLES, static_cast<GLsizei>(miner_vertices.size() * 2));
 
-        // lwvl::VertexArray::activate(grid_pipeline.vao);
-        // glProgramUniform1i(static_cast<GLuint>(vso), u_use_texture, 0);
-        // glPolygonMode( GL_FRONT_AND_BACK, GL_LINE );
-        // lwvl::draw_elements(GL_TRIANGLES, GRID_SIZE * GRID_SIZE * 6, GL_UNSIGNED_INT);
-        // glProgramUniform1i(static_cast<GLuint>(vso), u_use_texture, 1);
-        // glPolygonMode( GL_FRONT_AND_BACK, GL_FILL );
-
-        //glPolygonMode( GL_FRONT_AND_BACK, GL_LINE );
-        //glProgramUniform1i(static_cast<GLuint>(grid_pipeline.vso), u_use_texture, 0);
-        //lwvl::draw_elements(GL_TRIANGLES, GRID_SIZE * GRID_SIZE * 6, GL_UNSIGNED_INT);
-        //glProgramUniform1i(static_cast<GLuint>(grid_pipeline.vso), u_use_texture, 1);
-        //glPolygonMode( GL_FRONT_AND_BACK, GL_FILL );
         lwvl::Program::clear();
-        core::window_swap_buffers(window);
+
+        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+        window.swap();
     }
 
     return 0;
 }
 
 
-int main() { return run(); }
+int main() {
+    try {
+        return run();
+    } catch(const std::runtime_error &e) {
+        std::cerr << e.what() << '\n';
+        return 1;
+    } catch (const std::exception &) {
+        std::cerr << "Caught unknown exception.\n";
+        return 1;
+    }
+}

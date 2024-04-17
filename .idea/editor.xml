@@ -2,7 +2,44 @@
 <project version="4">
   <component name="BackendCodeEditorSettings">
     <option name="/Default/Housekeeping/GlobalSettingsUpgraded/IsUpgraded/@EntryValue" value="true" type="bool" />
-    <option name="/Default/CodeStyle/CodeFormatting/CppClangFormat/EnableClangFormatSupport/@EntryValue" value="true" type="bool" />
-    <option name="/Default/CodeStyle/CodeFormatting/CppClangFormat/ExecutableToUse/@EntryValue" />
+    <option name="/Default/PatternsAndTemplates/LiveTemplates/Template/=E5042FB434381B46A1C0C51AC87B1322/@KeyIndexDefined" value="true" type="bool" />
+    <option name="/Default/PatternsAndTemplates/LiveTemplates/Template/=E5042FB434381B46A1C0C51AC87B1322/Reformat/@EntryValue" value="true" type="bool" />
+    <option name="/Default/PatternsAndTemplates/LiveTemplates/Template/=E5042FB434381B46A1C0C51AC87B1322/ShortenQualifiedReferences/@EntryValue" value="true" type="bool" />
+    <option name="/Default/PatternsAndTemplates/LiveTemplates/Template/=E5042FB434381B46A1C0C51AC87B1322/Applicability/=Live/@EntryIndexedValue" value="true" type="bool" />
+    <option name="/Default/PatternsAndTemplates/LiveTemplates/Template/=E5042FB434381B46A1C0C51AC87B1322/Scope/=F6696F8185506F41B9C4252540BE9C18/@KeyIndexDefined" value="true" type="bool" />
+    <option name="/Default/PatternsAndTemplates/LiveTemplates/Template/=E5042FB434381B46A1C0C51AC87B1322/Scope/=F6696F8185506F41B9C4252540BE9C18/Type/@EntryValue" value="InCppFile" type="string" />
+    <option name="/Default/PatternsAndTemplates/LiveTemplates/Template/=E5042FB434381B46A1C0C51AC87B1322/Shortcut/@EntryValue" value="cfun" type="string" />
+    <option name="/Default/PatternsAndTemplates/LiveTemplates/Template/=E5042FB434381B46A1C0C51AC87B1322/Text/@EntryValue" value="inline $type$ to$type$($enumType$ $param$) {&#10;    return static_cast&lt;$type$&gt;($param$);&#10;}" type="string" />
+    <option name="/Default/PatternsAndTemplates/LiveTemplates/Template/=E5042FB434381B46A1C0C51AC87B1322/Field/=type/@KeyIndexDefined" value="true" type="bool" />
+    <option name="/Default/PatternsAndTemplates/LiveTemplates/Template/=E5042FB434381B46A1C0C51AC87B1322/Field/=type/Order/@EntryValue" value="0" type="long" />
+    <option name="/Default/PatternsAndTemplates/LiveTemplates/Template/=E5042FB434381B46A1C0C51AC87B1322/Field/=enumType/@KeyIndexDefined" value="true" type="bool" />
+    <option name="/Default/PatternsAndTemplates/LiveTemplates/Template/=E5042FB434381B46A1C0C51AC87B1322/Field/=enumType/Order/@EntryValue" value="1" type="long" />
+    <option name="/Default/PatternsAndTemplates/LiveTemplates/Template/=E5042FB434381B46A1C0C51AC87B1322/Field/=eenumType/Order/@EntryValue" value="2" type="long" />
+    <option name="/Default/PatternsAndTemplates/LiveTemplates/Template/=E5042FB434381B46A1C0C51AC87B1322/Field/=eenumTyp/Order/@EntryValue" value="3" type="long" />
+    <option name="/Default/PatternsAndTemplates/LiveTemplates/Template/=E5042FB434381B46A1C0C51AC87B1322/Field/=eenumTy/Order/@EntryValue" value="3" type="long" />
+    <option name="/Default/PatternsAndTemplates/LiveTemplates/Template/=E5042FB434381B46A1C0C51AC87B1322/Field/=eenumT/Order/@EntryValue" value="3" type="long" />
+    <option name="/Default/PatternsAndTemplates/LiveTemplates/Template/=E5042FB434381B46A1C0C51AC87B1322/Field/=eenum/Order/@EntryValue" value="3" type="long" />
+    <option name="/Default/PatternsAndTemplates/LiveTemplates/Template/=E5042FB434381B46A1C0C51AC87B1322/Field/=eenu/Order/@EntryValue" value="3" type="long" />
+    <option name="/Default/PatternsAndTemplates/LiveTemplates/Template/=E5042FB434381B46A1C0C51AC87B1322/Field/=een/Order/@EntryValue" value="3" type="long" />
+    <option name="/Default/PatternsAndTemplates/LiveTemplates/Template/=E5042FB434381B46A1C0C51AC87B1322/Field/=ee/Order/@EntryValue" value="3" type="long" />
+    <option name="/Default/PatternsAndTemplates/LiveTemplates/Template/=E5042FB434381B46A1C0C51AC87B1322/Field/=e/Order/@EntryValue" value="3" type="long" />
+    <option name="/Default/PatternsAndTemplates/LiveTemplates/Template/=E5042FB434381B46A1C0C51AC87B1322/Field/=p/Order/@EntryValue" value="3" type="long" />
+    <option name="/Default/PatternsAndTemplates/LiveTemplates/Template/=E5042FB434381B46A1C0C51AC87B1322/Field/=pa/Order/@EntryValue" value="3" type="long" />
+    <option name="/Default/PatternsAndTemplates/LiveTemplates/Template/=E5042FB434381B46A1C0C51AC87B1322/Field/=par/Order/@EntryValue" value="3" type="long" />
+    <option name="/Default/PatternsAndTemplates/LiveTemplates/Template/=E5042FB434381B46A1C0C51AC87B1322/Field/=para/Order/@EntryValue" value="3" type="long" />
+    <option name="/Default/PatternsAndTemplates/LiveTemplates/Template/=E5042FB434381B46A1C0C51AC87B1322/Field/=param/@KeyIndexDefined" value="true" type="bool" />
+    <option name="/Default/PatternsAndTemplates/LiveTemplates/Template/=E5042FB434381B46A1C0C51AC87B1322/Field/=param/Order/@EntryValue" value="2" type="long" />
+    <option name="/Default/PatternsAndTemplates/LiveTemplates/Template/=E5042FB434381B46A1C0C51AC87B1322/Field/=param/Expression/@EntryValue" value="guessElementType(enumType)" type="string" />
+    <option name="/Default/PatternsAndTemplates/LiveTemplates/Template/=E5042FB434381B46A1C0C51AC87B1322/Field/=type/Expression/@EntryValue" value="completeType(&quot;&quot;)" type="string" />
+    <option name="/Default/PatternsAndTemplates/LiveTemplates/Template/=E5042FB434381B46A1C0C51AC87B1322/Field/=enumType/Expression/@EntryValue" value="completeType(&quot;&quot;)" type="string" />
+    <option name="/Default/PatternsAndTemplates/LiveTemplates/Template/=EC693B900BB6EA429C603E855DFC80D1/@KeyIndexDefined" value="true" type="bool" />
+    <option name="/Default/PatternsAndTemplates/LiveTemplates/Template/=EC693B900BB6EA429C603E855DFC80D1/Reformat/@EntryValue" value="true" type="bool" />
+    <option name="/Default/PatternsAndTemplates/LiveTemplates/Template/=EC693B900BB6EA429C603E855DFC80D1/ShortenQualifiedReferences/@EntryValue" value="true" type="bool" />
+    <option name="/Default/PatternsAndTemplates/LiveTemplates/Template/=EC693B900BB6EA429C603E855DFC80D1/Applicability/=Live/@EntryIndexedValue" value="true" type="bool" />
+    <option name="/Default/PatternsAndTemplates/LiveTemplates/Template/=EC693B900BB6EA429C603E855DFC80D1/Scope/=F6696F8185506F41B9C4252540BE9C18/@KeyIndexDefined" value="true" type="bool" />
+    <option name="/Default/PatternsAndTemplates/LiveTemplates/Template/=EC693B900BB6EA429C603E855DFC80D1/Scope/=F6696F8185506F41B9C4252540BE9C18/Type/@EntryValue" value="InCppFile" type="string" />
+    <option name="/Default/PatternsAndTemplates/LiveTemplates/Template/=EC693B900BB6EA429C603E855DFC80D1/Text/@EntryValue" value="'\n'" type="string" />
+    <option name="/Default/PatternsAndTemplates/LiveTemplates/Template/=EC693B900BB6EA429C603E855DFC80D1/Shortcut/@EntryValue" value="nl" type="string" />
+    <option name="/Default/PatternsAndTemplates/LiveTemplates/Template/=EC693B900BB6EA429C603E855DFC80D1/Description/@EntryValue" value="Insert newline string - alternative for std::endl." type="string" />
   </component>
 </project>

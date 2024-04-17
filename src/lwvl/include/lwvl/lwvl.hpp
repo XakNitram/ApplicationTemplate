@@ -18,6 +18,7 @@
 
 namespace lwvl {
     const char *source_to_string(GLenum source);
+    void clear();
 
 
     class Buffer {
@@ -138,9 +139,10 @@ namespace lwvl {
         ~Program();
 
         enum class LinkStatus {
+            GenericFailure = 0,  // Setting this default value handles the case where the value is never properly set.
+            LinkFailure,
+            ValidationFailure,
             Success,
-            LinkFailed,
-            ValidationFailed
         };
 
         static void link(const Program &, const Shader *stages, GLsizei count, LinkStatus &status);

@@ -36,29 +36,28 @@ namespace lwvl {
         glUseProgram(0);
     }
 
-    void Program::link(const Program &_program, const Shader *stages, GLsizei count, LinkStatus &status) {
-        GLuint program { static_cast<GLuint>(_program) };
+    void Program::link(const Program &_program, const Shader *stages, const GLsizei count, LinkStatus &status) {
+        const GLuint program { static_cast<GLuint>(_program) };
         for (GLsizei i = 0; i < count; ++i) {
             const Shader& stage = stages[i];
             glAttachShader(program, static_cast<GLuint>(stage));
         }
 
         glLinkProgram(program);
-        const GLint is_linked {
-            [](GLuint program){
+
+        if (const GLint is_linked {
+            [](const GLuint program){
                 GLint temp;
                 glGetProgramiv(program, GL_LINK_STATUS, &temp);
                 return temp;
             }(program)
-        };
-
-        if (is_linked == GL_FALSE) {
+        }; is_linked == GL_FALSE) {
 #ifdef LWVL_PRINT_ERRORS
             GLint max_length = 0;
             glGetProgramiv(program, GL_INFO_LOG_LENGTH, &max_length);
 
             // The maxLength includes the NULL character
-            std::unique_ptr<GLchar[]> info_log {std::make_unique<GLchar[]>(max_length)};
+            auto info_log {std::make_unique<GLchar[]>(max_length)};
             glGetProgramInfoLog(program, max_length, &max_length, std::addressof(info_log[0]));
 
             // Provide the infolog in whatever manner you deem best.
@@ -66,26 +65,25 @@ namespace lwvl {
 #endif
 
             // Exit with failure.
-            status = Program::LinkStatus::LinkFailed;
+            status = LinkStatus::LinkFailure;
             return;
         }
 
         glValidateProgram(program);
-        const GLint is_valid {
-            [](GLuint program){
+
+        if (const GLint is_valid {
+            [](const GLuint program){
                 GLint temp;
                 glGetProgramiv(program, GL_VALIDATE_STATUS, &temp);
                 return temp;
             }(program)
-        };
-
-        if (is_valid == GL_FALSE) {
+        }; is_valid == GL_FALSE) {
 #ifdef LWVL_PRINT_ERRORS
             GLint max_length = 0;
             glGetProgramiv(program, GL_INFO_LOG_LENGTH, &max_length);
 
             // The maxLength includes the NULL character
-            std::unique_ptr<GLchar[]> info_log {std::make_unique<GLchar[]>(max_length)};
+            auto info_log {std::make_unique<GLchar[]>(max_length)};
             glGetProgramInfoLog(program, max_length, &max_length, std::addressof(info_log[0]));
 
             // Provide the infolog in whatever manner you deem best.
@@ -93,7 +91,7 @@ namespace lwvl {
 #endif
 
             // Exit with failure.
-            status = Program::LinkStatus::ValidationFailed;
+            status = LinkStatus::ValidationFailure;
             return;
         }
 
@@ -101,6 +99,8 @@ namespace lwvl {
             const Shader& stage = stages[i];
             glDetachShader(static_cast<GLuint>(program), static_cast<GLuint>(stage));
         }
+
+        status = LinkStatus::Success;
     }
 
     Uniform Program::uniform(const Program &program, const char *name) {
