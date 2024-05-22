@@ -14,8 +14,9 @@ target_sources(
         World/Board.cppm
 
         # STRUCTURES
+        Structures/Array.cppm
 #        Structures/Structures.cppm
-#        Structures/UnmanagedArray.cppm
+        Structures/Tether.cppm
 )
 
 target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")

@@ -10,7 +10,11 @@
 #include <chrono>
 #include <iostream>
 #include <array>
+template <class T, size_t Size>
+using StaticArray = std::array<T, Size>;
 #include <vector>
+template <class T, class Alloc = std::allocator<T>>
+using DynamicArray = std::vector<T, Alloc>;
 #include <string>
 #include <sstream>
 #include <fstream>

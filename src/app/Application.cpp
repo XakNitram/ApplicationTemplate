@@ -91,13 +91,13 @@ struct MinerCell {
 
 constexpr ptrdiff_t BOARD_SIZE = 16;
 constexpr ptrdiff_t GRID_SIZE = BOARD_SIZE + 1;
-using Mat4 = std::array<float, 16>;
-using Board = std::array<uint32_t, BOARD_SIZE * BOARD_SIZE>;
-using GridModel = std::array<Cell, GRID_SIZE * GRID_SIZE>;
-using GridIndices = std::array<uint32_t, GRID_SIZE * GRID_SIZE * 6>;
+using Mat4 = StaticArray<float, 16>;
+using Board = StaticArray<uint32_t, BOARD_SIZE * BOARD_SIZE>;
+using GridModel = StaticArray<Cell, GRID_SIZE * GRID_SIZE>;
+using GridIndices = StaticArray<uint32_t, GRID_SIZE * GRID_SIZE * 6>;
 // Index buffer matches or cuts down on the upload size of a vertex draw for any vertex dimension greater than 2.
-using GridTexCoords = std::array<TexCoordCell, GRID_SIZE * GRID_SIZE>;
-using TextureMap = std::array<TexCoordCell, 16>;
+using GridTexCoords = StaticArray<TexCoordCell, GRID_SIZE * GRID_SIZE>;
+using TextureMap = StaticArray<TexCoordCell, 16>;
 
 constexpr GridModel grid_model_generate() {
     constexpr float size_fraction = 1.0f / static_cast<float>(GRID_SIZE);
@@ -179,7 +179,7 @@ constexpr TextureMap STONE_TEXTURE_MAP{
     TexCoordCell{{TCS, TRS * 1}, {TCS * 2, TRS * 1}, {TCS * 2, TRS * 2}, {TCS, TRS * 2}}, // 0b1111
 };
 
-constexpr std::array<uint8_t, 256> RANDOM_ARRAY {
+constexpr StaticArray<uint8_t, 256> RANDOM_ARRAY {
     56, 133, 226, 14, 244, 249, 104, 48, 248, 16, 230, 96, 202, 0, 153, 224, 240, 109, 63, 234, 173, 74,
     127, 200, 186, 8, 112, 241, 59, 110, 77, 118, 180, 141, 251, 213, 252, 164, 128, 183, 95, 169, 36, 172,
     94, 193, 19, 201, 235, 196, 145, 83, 150, 167, 79, 146, 191, 55, 35, 154, 92, 1, 211, 220, 10, 117,
@@ -387,13 +387,13 @@ int run() {
     auto board{std::make_unique<Board>()};
     for (std::ptrdiff_t i = 0; i < BOARD_SIZE * BOARD_SIZE; ++i) { (*board)[i] = 0; }
 
-    std::vector<Miner> miners{4};
+    DynamicArray<Miner> miners{4};
     for (std::ptrdiff_t i = 0; i < 4; ++i) {
         miners[i].id = i;
         miners[i].index = i;
     }
 
-    std::vector<MinerCell> miner_vertices{};
+    DynamicArray<MinerCell> miner_vertices{};
     miner_vertices.reserve(4);
     constexpr float cell_size{1.0f / static_cast<float>(GRID_SIZE)};
     for (std::ptrdiff_t i = 0; i < 4; ++i) {
@@ -411,9 +411,6 @@ int run() {
         });
     }
 
-    // to move the miners we need to update the miner object in "miners" and the vertices in "miner_vertices"
-    // we also need to check for valid moves in "board"
-
     auto grid_tex_coords{std::make_unique<GridTexCoords>()};
     for (std::ptrdiff_t i = 0; i < GRID_SIZE; ++i) {
         for (std::ptrdiff_t j = 0; j < GRID_SIZE; ++j) {
@@ -422,9 +419,9 @@ int run() {
         }
     }
 
-    std::vector<SpriteCell> sprite_vertices{};
+    DynamicArray<SpriteCell> sprite_vertices{};
     sprite_vertices.reserve(BOARD_SIZE * BOARD_SIZE);
-    std::vector<SquareIndices> sprite_indices{};
+    DynamicArray<SquareIndices> sprite_indices{};
     sprite_indices.reserve(BOARD_SIZE * BOARD_SIZE);
     for (std::ptrdiff_t i = 0; i < BOARD_SIZE; ++i) {
         for (std::ptrdiff_t j = 0; j < BOARD_SIZE; ++j) {
@@ -449,9 +446,13 @@ int run() {
     }
 
     glDebugMessageCallback(
-        []([[maybe_unused]] const GLenum source, [[maybe_unused]] const GLenum type, [[maybe_unused]] GLuint id,
-           [[maybe_unused]] GLenum severity, [[maybe_unused]] GLsizei length, [[maybe_unused]] const GLchar *message,
-           [[maybe_unused]] const void *userParam) {
+        [](
+            [[maybe_unused]] const GLenum source, [[maybe_unused]] const GLenum type, [[maybe_unused]] GLuint id,
+            [[maybe_unused]] const GLenum severity,
+            [[maybe_unused]] const GLsizei length,
+            [[maybe_unused]] const GLchar *message,
+            [[maybe_unused]] const void *userParam
+        ) {
             if (severity == GL_DEBUG_SEVERITY_NOTIFICATION) { return; }
             auto *stream = &std::cout;
             if (type == GL_DEBUG_TYPE_ERROR) { stream = &std::cerr; }
@@ -611,8 +612,34 @@ int run() {
     int display_w, display_h;
     glfwGetFramebufferSize(static_cast<GLFWwindow*>(window), &display_w, &display_h);
 
-    //const auto time_point = std::chrono::high_resolution_clock::now();
+    {
+        // Some claim clock resolutions can be as coarse as 10ms. 2ms is 500fps so I think that should be workable.
+        using Period = std::chrono::steady_clock::period;
+        if constexpr (constexpr auto resolution_ns = 1'000'000'000 * Period::num / Period::den; resolution_ns > 8'333'333) {
+            std::cerr << "System clock resolution is too coarse for accurate tick calculations.\n";
+        } else if constexpr (resolution_ns > 2'000'000) {
+            std::cerr << "System clock resolution may be too coarse for accurate tick calculations.\n";
+        }
+    }
+
+    // Ticks to limit how often the miner can act.
+    constexpr uint64_t tick_nanoseconds {50'000'000};
+    // 64-bits is over 29,247,120,867 years worth of 50ms intervals
+    uint64_t tick_count {0};
+    uint64_t tick_overshoot {0};  // We may catch the frame at 0.001ms past tick_start. This keeps track of the nanoseconds lost this way.
+    auto tick_start {std::chrono::steady_clock::now()};  // steady clock guarantees t0<t1
     while (!window.should_close()) {
+        const auto new_tick_start {std::chrono::steady_clock::now()};
+        const uint64_t frame_time = std::chrono::duration_cast<std::chrono::nanoseconds>(
+            new_tick_start - tick_start
+        ).count();
+
+        if (const uint64_t adj_time {frame_time + tick_overshoot}; adj_time >= tick_nanoseconds) {
+            tick_start = new_tick_start;
+            tick_count += adj_time / tick_nanoseconds;
+            tick_overshoot = adj_time % tick_nanoseconds;  // mod should be free with above div.
+        }
+
         core::Window::poll_events();
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplGlfw_NewFrame();
@@ -627,6 +654,8 @@ int run() {
             ImGui::Checkbox("Demo Window", &show_demo_window);      // Edit bools storing our window open/close state
 
             ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
+            ImGui::Text("Tick: %d", tick_count);
+            ImGui::Text("Tick overshoot: %d", tick_overshoot);
             ImGui::End();
         }
 
