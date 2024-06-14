@@ -1,12 +1,12 @@
 module;
 #include "pch.hpp"
-export module Array;
+export module SizedArray;
 
 import Tether;
 
 
-export template<typename T>
-class Array {
+export template<typename T, std::size_t Size>
+class SizedArray {
     struct iterator {
         using iterator_category = std::contiguous_iterator_tag;
         using value_type = T;
@@ -14,7 +14,7 @@ class Array {
         using pointer = T*;
         using reference = T&;
 
-        explicit iterator(const T *p_data) : ptr(p_data) {}
+        explicit iterator(T *p_data) : ptr(p_data) {}
 
         iterator &operator=(const iterator &) noexcept = default;
         [[nodiscard]] reference operator*() const noexcept { return *ptr; }
@@ -66,13 +66,12 @@ class Array {
     };
 
     T* m_data;
-    const std::size_t m_size;
 public:
 
-    explicit Array(const std::size_t size) : m_data(new T[size]), m_size(size) {}
+    explicit SizedArray() : m_data(new T[Size]) {}
     // Array(const std::size_t size, allocator) : data(std::make_unique<T[]>(size)), size(size) {}
 
-    ~Array() { delete[] m_data; }
+    ~SizedArray() { delete[] m_data; }
 
     constexpr T& at(std::size_t pos) noexcept { return m_data[pos]; }
     constexpr const T& at(std::size_t pos) const noexcept { return m_data[pos]; }
@@ -90,11 +89,11 @@ public:
     [[nodiscard]] constexpr iterator begin() noexcept { return iterator(m_data); }
     [[nodiscard]] constexpr const_iterator begin() const noexcept { return const_iterator(m_data); }
 
-    [[nodiscard]] constexpr iterator end() noexcept { return iterator(m_data + m_size); }
-    [[nodiscard]] constexpr const_iterator end() const noexcept { return const_iterator(m_data + m_size); }
+    [[nodiscard]] constexpr iterator end() noexcept { return iterator(m_data + Size); }
+    [[nodiscard]] constexpr const_iterator end() const noexcept { return const_iterator(m_data + Size); }
 
     [[nodiscard]] constexpr const T* data() const noexcept { return m_data; }
-    [[nodiscard]] constexpr std::size_t size() const noexcept { return m_size; }
+    [[nodiscard]] constexpr std::size_t size() const noexcept { return Size; }
 
-    [[nodiscard]] constexpr Tether<T> tether() const noexcept { return Tether<T>{m_data, m_size}; }
+    [[nodiscard]] constexpr Tether<T> tether() const noexcept { return Tether<T>{m_data, Size}; }
 };

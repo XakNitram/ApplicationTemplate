@@ -15,7 +15,7 @@ target_sources(
 
         # STRUCTURES
         Structures/Array.cppm
-#        Structures/Structures.cppm
+        Structures/SizedArray.cppm
         Structures/Tether.cppm
 )
 

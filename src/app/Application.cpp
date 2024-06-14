@@ -1,7 +1,17 @@
 #include "pch.hpp"
 import Window;
+import SizedArray;
+import Array;
+import Tether;
 
 // Learn data structures
+
+namespace sc {
+    using namespace std::chrono;
+    using steady_point = time_point<steady_clock>;
+}
+
+using Tick = uint64_t;
 
 
 struct Vertex {
@@ -66,14 +76,6 @@ struct SquareIndices {
 };
 
 
-struct Miner {
-    uint32_t id = 0;
-    int64_t index = 0;
-    float x{0.0f};
-    float y{0.0f};
-};
-
-
 struct MinerCell {
     SpriteVertex bs{};
     SpriteVertex be{};
@@ -89,15 +91,49 @@ struct MinerCell {
 };
 
 
+constexpr ptrdiff_t MINER_COUNT = 4;
 constexpr ptrdiff_t BOARD_SIZE = 16;
+static_assert(MINER_COUNT <= BOARD_SIZE * BOARD_SIZE);  // Remove if we implement board tiling.
 constexpr ptrdiff_t GRID_SIZE = BOARD_SIZE + 1;
+using BoardCell = uint32_t;
 using Mat4 = StaticArray<float, 16>;
-using Board = StaticArray<uint32_t, BOARD_SIZE * BOARD_SIZE>;
+using Board = SizedArray<BoardCell, BOARD_SIZE * BOARD_SIZE>;
 using GridModel = StaticArray<Cell, GRID_SIZE * GRID_SIZE>;
 using GridIndices = StaticArray<uint32_t, GRID_SIZE * GRID_SIZE * 6>;
 // Index buffer matches or cuts down on the upload size of a vertex draw for any vertex dimension greater than 2.
-using GridTexCoords = StaticArray<TexCoordCell, GRID_SIZE * GRID_SIZE>;
+using GridTexCoords = SizedArray<TexCoordCell, GRID_SIZE * GRID_SIZE>;
 using TextureMap = StaticArray<TexCoordCell, 16>;
+
+struct Miner {
+    enum class Animation {
+        None = 0,
+        Move,
+        Mine
+    };
+
+    uint32_t id = 0;
+    int64_t index = 0;
+    Tick next_move = 200;
+    bool in_animation {false};
+    Animation animation {};
+};
+
+
+struct MoveAnimation {
+    float start_x {0.0f};
+    float start_y {0.0f};
+    float end_x {0.0f};
+    float end_y {0.0f};
+    sc::steady_point start_time { sc::steady_clock::now() };
+    sc::steady_point end_time { sc::steady_clock::now() };
+};
+
+
+struct MineAnimation {
+    std::ptrdiff_t target {0};
+    sc::steady_point start_time { sc::steady_clock::now() };
+    sc::steady_point end_time { sc::steady_clock::now() };
+};
 
 constexpr GridModel grid_model_generate() {
     constexpr float size_fraction = 1.0f / static_cast<float>(GRID_SIZE);
@@ -161,22 +197,22 @@ constexpr uint64_t TEXTURE_ROWS = 5;
 constexpr float TCS = 1.0f / static_cast<float>(TEXTURE_COLUMNS);
 constexpr float TRS = 1.0f / static_cast<float>(TEXTURE_ROWS);
 constexpr TextureMap STONE_TEXTURE_MAP{
-    TexCoordCell{{0.0f, TRS * 3}, {TCS, TRS * 3}, {TCS, TRS * 4}, {0.0f, TRS * 4}}, // 0b0000
-    TexCoordCell{{TCS * 2, TRS * 2}, {TCS * 3, TRS * 2}, {TCS * 3, TRS * 3}, {TCS * 2, TRS * 3}}, // 0b0001
-    TexCoordCell{{0.0f, TRS * 2}, {TCS, TRS * 2}, {TCS, TRS * 3}, {0.0f, TRS * 3}}, // 0b0010
-    TexCoordCell{{TCS, TRS * 2}, {TCS * 2, TRS * 2}, {TCS * 2, TRS * 3}, {TCS, TRS * 3}}, // 0b0011
-    TexCoordCell{{0.0f, TRS}, {TCS, TRS}, {TCS, TRS * 1}, {0.0f, TRS * 1}}, // 0b0100
-    TexCoordCell{{TCS * 3, TRS}, {TCS * 4, TRS}, {TCS * 4, TRS * 1}, {TCS * 3, TRS * 1}}, // 0b0101
-    TexCoordCell{{0.0f, TRS * 1}, {TCS, TRS * 1}, {TCS, TRS * 2}, {0.0f, TRS * 2}}, // 0b0110
-    TexCoordCell{{TCS * 4, TRS * 1}, {TCS * 5, TRS * 1}, {TCS * 5, TRS * 2}, {TCS * 4, TRS * 2}}, // 0b0111
-    TexCoordCell{{TCS * 2, TRS}, {TCS * 3, TRS}, {TCS * 3, TRS * 1}, {TCS * 2, TRS * 1}}, // 0b1000
-    TexCoordCell{{TCS * 2, TRS * 1}, {TCS * 3, TRS * 1}, {TCS * 3, TRS * 2}, {TCS * 2, TRS * 2}}, // 0b1001
-    TexCoordCell{{TCS * 4, TRS}, {TCS * 5, TRS}, {TCS * 5, TRS * 1}, {TCS * 4, TRS * 1}}, // 0b1010
-    TexCoordCell{{TCS * 3, TRS * 1}, {TCS * 4, TRS * 1}, {TCS * 4, TRS * 2}, {TCS * 3, TRS * 2}}, // 0b1011
-    TexCoordCell{{TCS, 0.0f}, {TCS * 2, 0.0f}, {TCS * 2, TRS}, {TCS, TRS}}, // 0b1100
-    TexCoordCell{{TCS * 3, TRS * 2}, {TCS * 4, TRS * 2}, {TCS * 4, TRS * 3}, {TCS * 3, TRS * 3}}, // 0b1101
-    TexCoordCell{{TCS * 4, TRS * 2}, {TCS * 5, TRS * 2}, {TCS * 5, TRS * 3}, {TCS * 4, TRS * 3}}, // 0b1110
-    TexCoordCell{{TCS, TRS * 1}, {TCS * 2, TRS * 1}, {TCS * 2, TRS * 2}, {TCS, TRS * 2}}, // 0b1111
+    TexCoordCell{{0.0f, 0.0f}, {0.2f, 0.0f}, {0.2f, 0.2f}, {0.0f, 0.2f}},
+    TexCoordCell{{0.4f, 0.4f}, {0.6f, 0.4f}, {0.6f, 0.6f}, {0.4f, 0.6f}},
+    TexCoordCell{{0.2f, 0.4f}, {0.4f, 0.4f}, {0.4f, 0.6f}, {0.2f, 0.6f}},
+    TexCoordCell{{0.0f, 0.2f}, {0.2f, 0.2f}, {0.2f, 0.4f}, {0.0f, 0.4f}},
+    TexCoordCell{{0.4f, 0.2f}, {0.6f, 0.2f}, {0.6f, 0.4f}, {0.4f, 0.4f}},
+    TexCoordCell{{0.0f, 0.6f}, {0.2f, 0.6f}, {0.2f, 0.8f}, {0.0f, 0.8f}},
+    TexCoordCell{{0.6f, 0.4f}, {0.8f, 0.4f}, {0.8f, 0.6f}, {0.6f, 0.6f}},
+    TexCoordCell{{0.4f, 0.6f}, {0.6f, 0.6f}, {0.6f, 0.8f}, {0.4f, 0.8f}},
+    TexCoordCell{{0.2f, 0.2f}, {0.4f, 0.2f}, {0.4f, 0.4f}, {0.2f, 0.4f}},
+    TexCoordCell{{0.0f, 0.4f}, {0.2f, 0.4f}, {0.2f, 0.6f}, {0.0f, 0.6f}},
+    TexCoordCell{{0.6f, 0.6f}, {0.8f, 0.6f}, {0.8f, 0.8f}, {0.6f, 0.8f}},
+    TexCoordCell{{0.2f, 0.6f}, {0.4f, 0.6f}, {0.4f, 0.8f}, {0.2f, 0.8f}},
+    TexCoordCell{{0.6f, 0.2f}, {0.8f, 0.2f}, {0.8f, 0.4f}, {0.6f, 0.4f}},
+    TexCoordCell{{0.4f, 0.0f}, {0.6f, 0.0f}, {0.6f, 0.2f}, {0.4f, 0.2f}},
+    TexCoordCell{{0.2f, 0.0f}, {0.4f, 0.0f}, {0.4f, 0.2f}, {0.2f, 0.2f}},
+    TexCoordCell{{0.6f, 0.0f}, {0.8f, 0.0f}, {0.8f, 0.2f}, {0.6f, 0.2f}},
 };
 
 constexpr StaticArray<uint8_t, 256> RANDOM_ARRAY {
@@ -193,6 +229,7 @@ constexpr StaticArray<uint8_t, 256> RANDOM_ARRAY {
     254, 6, 73, 80, 255, 148, 160, 142, 40, 176, 216, 207, 44, 238, 9, 163, 228, 199, 30, 66, 67, 221,
     26, 126, 138, 233, 27, 113, 157, 236, 239, 162, 243, 60, 75, 222
 };
+
 
 uint8_t doom_random() {
     static uint32_t index = 0;
@@ -255,42 +292,43 @@ static void stbi_vertical_flip(void *image, const int64_t w, const int64_t h, co
 }
 
 
-uint8_t select_texture(const std::ptrdiff_t i, const std::ptrdiff_t j, const uint32_t *board) {
+uint8_t select_texture(const std::ptrdiff_t i, const std::ptrdiff_t j, const Tether<BoardCell> board) {
     constexpr std::ptrdiff_t grid_limit = GRID_SIZE - 1;
 
-    // 0b1 - bottom left, 0b10 - bottom right, 0b100 - top right, 0b1000 - top left
+    // 0b1 - bottom left, 0b10 - bottom right, 0b100 - top left, 0b1000 - top right
     // follows standard triangle vertex direction
-    uint8_t texture_selector{0};
-
-    //texture_selector |= (i == 0 || j == 0 ? 0x1 : (board[(i - 1) * BOARD_SIZE + (j - 1)] > 0));
-    if (i == 0 || j == 0) { texture_selector |= 0x1; } else {
-        texture_selector |= board[(i - 1) * BOARD_SIZE + (j - 1)] > 0;
-    }
-
-    //texture_selector |= (i == 0 || j == grid_limit ? 0x2 : (board[(i - 1) * BOARD_SIZE + j] > 0) << 1);
-    if (i == 0 || j == grid_limit) { texture_selector |= 0x2; } else {
-        texture_selector |= (board[(i - 1) * BOARD_SIZE + j] > 0) << 1;
-    }
-
-    //texture_selector |= (i == grid_limit || j == grid_limit ? 0x4 : (board[i * BOARD_SIZE + j] > 0) << 2);
-    if (i == grid_limit || j == grid_limit) { texture_selector |= 0x4; } else {
-        texture_selector |= (board[i * BOARD_SIZE + j] > 0) << 2;
-    }
-
-    //texture_selector |= (i == grid_limit || j == 0 ? 0x8 : (board[i * BOARD_SIZE + (j - 1)] > 0) << 3);
-    if (i == grid_limit || j == 0) { texture_selector |= 0x8; } else {
-        texture_selector |= (board[i * BOARD_SIZE + (j - 1)] > 0) << 3;
-    }
-
-    return texture_selector;
+    const auto x = (i == 0 || j == 0 ? 0x8 : (board[(i - 1) * BOARD_SIZE + (j - 1)] > 0) << 3)
+        + (i == 0 || j == grid_limit ? 0x4 : (board[(i - 1) * BOARD_SIZE + j] > 0) << 2)
+        + (i == grid_limit || j == 0 ? 0x2 : (board[i * BOARD_SIZE + (j - 1)] > 0) << 1)
+        + (i == grid_limit || j == grid_limit ? 0x1 : (board[i * BOARD_SIZE + j] > 0));
+    // std::cout << x << '\n';
+    return x;
 }
 
 
-inline double delta(const std::chrono::time_point<std::chrono::steady_clock> start) {
+inline double delta(const sc::time_point<sc::steady_clock> start) {
     const auto diff = static_cast<double>(
-        std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - start).count()
+        sc::duration_cast<sc::nanoseconds>(sc::high_resolution_clock::now() - start).count()
     );
-    return 0.000001 * diff;
+    return 0.000000001 * diff;
+}
+
+
+inline double delta(const sc::time_point<sc::steady_clock> start, const sc::time_point<sc::steady_clock> end) {
+    const auto diff = static_cast<double>(
+        sc::duration_cast<sc::nanoseconds>(end - start).count()
+    );
+    return 0.000000001 * diff;
+}
+
+
+inline float lerp(const float s, const float e, const float t) {
+    return s + t * (e - s);
+}
+
+
+inline double easeInOut(const double t) {
+    return t < 0.5 ? 2.0 * t * t : -1.0 + (4 - 2 * t) * t;
 }
 
 
@@ -303,7 +341,7 @@ struct GridRenderPipeline {
     void construct(const GridTexCoords &grid_tex_coords) const {
         lwvl::Buffer::const_fill(vbo, GRID_MODEL.begin(), GRID_MODEL.end());
         lwvl::Buffer::const_fill(veo, GRID_INDICES.begin(), GRID_INDICES.end());
-        lwvl::Buffer::const_fill(vtcbo, grid_tex_coords.begin(), grid_tex_coords.end());
+        lwvl::Buffer::const_fill(vtcbo, grid_tex_coords.begin(), grid_tex_coords.end(), GL_CLIENT_STORAGE_BIT | GL_DYNAMIC_STORAGE_BIT);
 
         lwvl::VertexArray::add_buffer(vao, vbo, 0, sizeof(Vertex));
         lwvl::VertexArray::add_element_buffer(vao, veo);
@@ -324,8 +362,8 @@ struct SpriteRenderPipeline {
     lwvl::Buffer veo{};
 
     void construct(const std::vector<SpriteCell> &sprite_vertices, const std::vector<SquareIndices> &sprite_indices) const {
-        lwvl::Buffer::const_fill(vbo, sprite_vertices.begin(), sprite_vertices.end());
-        lwvl::Buffer::const_fill(veo, sprite_indices.begin(), sprite_indices.end());
+        lwvl::Buffer::const_fill(vbo, sprite_vertices.begin(), sprite_vertices.end(), GL_CLIENT_STORAGE_BIT | GL_DYNAMIC_STORAGE_BIT);
+        lwvl::Buffer::const_fill(veo, sprite_indices.begin(), sprite_indices.end(), GL_CLIENT_STORAGE_BIT | GL_DYNAMIC_STORAGE_BIT);
 
         lwvl::VertexArray::add_buffer(vao, vbo, 0, sizeof(SpriteVertex));
         lwvl::VertexArray::add_element_buffer(vao, veo);
@@ -342,7 +380,7 @@ struct MinerRenderPipeline {
     lwvl::Buffer vbo{};
 
     void construct(const std::vector<MinerCell> &miner_vertices) const {
-        lwvl::Buffer::const_fill(vbo, miner_vertices.begin(), miner_vertices.end());
+        lwvl::Buffer::const_fill(vbo, miner_vertices.begin(), miner_vertices.end(), GL_CLIENT_STORAGE_BIT | GL_DYNAMIC_STORAGE_BIT);
 
         lwvl::VertexArray::add_buffer(vao, vbo, 0, sizeof(SpriteVertex));
         lwvl::VertexArray::add_attribute(vao, 0, 2, GL_FLOAT, offsetof(SpriteVertex, x));
@@ -384,22 +422,49 @@ int run() {
 
     bool show_demo_window = false;
 
-    auto board{std::make_unique<Board>()};
-    for (std::ptrdiff_t i = 0; i < BOARD_SIZE * BOARD_SIZE; ++i) { (*board)[i] = 0; }
+    Board board {};
+    for (std::ptrdiff_t i = 0; i < BOARD_SIZE * BOARD_SIZE; ++i) { board[i] = 1; }
 
-    DynamicArray<Miner> miners{4};
-    for (std::ptrdiff_t i = 0; i < 4; ++i) {
+    DynamicArray<Miner> miners{MINER_COUNT};
+    for (std::ptrdiff_t i = 0; i < MINER_COUNT;) {
+        constexpr float random_div {1.0f / 255.0f};  // Because 255 is the maximum value. 256 here would never give a value of 1.0.
+        const auto index {
+            static_cast<int64_t>(
+                std::round(
+                    static_cast<float>(doom_random())
+                    * random_div
+                    * static_cast<float>((BOARD_SIZE - 1) * (BOARD_SIZE - 1)))
+            )
+        };
+
+        // Check other miners so none share a starting location.
+        // Need a different method if MINER_COUNT increases too much.
+        bool valid_index {true};
+        for (std::ptrdiff_t j = 0; j < MINER_COUNT; ++j) {
+            if (index == miners[j].index) {
+                valid_index = false;
+            }
+        }
+
+        if (!valid_index) {
+            continue;
+        }
+
+        board[index] = 0;
+
         miners[i].id = i;
-        miners[i].index = i;
+        miners[i].index = index;
+        miners[i].next_move = doom_random();
+        ++i;
     }
 
     DynamicArray<MinerCell> miner_vertices{};
-    miner_vertices.reserve(4);
+    miner_vertices.reserve(MINER_COUNT);
     constexpr float cell_size{1.0f / static_cast<float>(GRID_SIZE)};
-    for (std::ptrdiff_t i = 0; i < 4; ++i) {
-        const auto &[id, index, x, y]{miners[i]};
-        std::ptrdiff_t n = index % BOARD_SIZE;
-        std::ptrdiff_t m = index / BOARD_SIZE;
+    for (std::ptrdiff_t i = 0; i < MINER_COUNT; ++i) {
+        const auto &miner{miners[i]};
+        std::ptrdiff_t n = miner.index % BOARD_SIZE;
+        std::ptrdiff_t m = miner.index / BOARD_SIZE;
 
         const float base_x = (static_cast<float>(n) + 0.5f) * cell_size - 0.5f;
         const float base_y = (static_cast<float>(m) + 0.5f) * cell_size - 0.5f;
@@ -411,11 +476,12 @@ int run() {
         });
     }
 
-    auto grid_tex_coords{std::make_unique<GridTexCoords>()};
+    // auto grid_tex_coords{std::make_unique<GridTexCoords>()};
+    GridTexCoords grid_tex_coords{};
     for (std::ptrdiff_t i = 0; i < GRID_SIZE; ++i) {
         for (std::ptrdiff_t j = 0; j < GRID_SIZE; ++j) {
-            const uint8_t texture_selector = select_texture(i, j, board->data());
-            (*grid_tex_coords)[i * GRID_SIZE + j] = STONE_TEXTURE_MAP[texture_selector];
+            const uint8_t texture_selector = select_texture(i, j, board.tether());
+            grid_tex_coords[i * GRID_SIZE + j] = STONE_TEXTURE_MAP[texture_selector];
         }
     }
 
@@ -425,9 +491,9 @@ int run() {
     sprite_indices.reserve(BOARD_SIZE * BOARD_SIZE);
     for (std::ptrdiff_t i = 0; i < BOARD_SIZE; ++i) {
         for (std::ptrdiff_t j = 0; j < BOARD_SIZE; ++j) {
-            if ((*board)[i * BOARD_SIZE + j] > 0) { continue; }
+            if (board.at(i * BOARD_SIZE + j) > 0) { continue; }
 
-            if (i == BOARD_SIZE - 1 || (*board)[(i + 1) * BOARD_SIZE + j] > 0) {
+            if (i == BOARD_SIZE - 1 || board.at((i + 1) * BOARD_SIZE + j) > 0) {
                 const float base_x = (static_cast<float>(j) + 0.5f) * cell_size - 0.5f;
                 const float base_y = (static_cast<float>(i) + 0.5f) * cell_size - 0.5f;
                 sprite_vertices.emplace_back(SpriteCell{
@@ -468,7 +534,7 @@ int run() {
 
 
     const GridRenderPipeline grid_pipeline{};
-    grid_pipeline.construct(*grid_tex_coords);
+    grid_pipeline.construct(grid_tex_coords);
 
     const SpriteRenderPipeline sprite_pipeline{};
     sprite_pipeline.construct(sprite_vertices, sprite_indices);
@@ -504,9 +570,9 @@ int run() {
         // GLFW expects the image to be loaded upside down.
         stbi_set_flip_vertically_on_load(false);
         int width, height, nr_channels;
-        unsigned char *data = stbi_load("Data/Textures/pickaxe.png", &width, &height, &nr_channels, 0);
+        unsigned char *data = stbi_load("Data/Textures/diamond_pickaxe.png", &width, &height, &nr_channels, 0);
         if (!data) {
-            std::cout << "Failed to load Data/Textures/pickaxe.png." << '\n';
+            std::cout << "Failed to load Data/Textures/diamond_pickaxe.png." << '\n';
             glfwSetWindowIcon(static_cast<GLFWwindow *>(window), 0, nullptr);
             return 1;
         }
@@ -531,7 +597,10 @@ int run() {
 
     constexpr float aspect{static_cast<float>(window_width) / static_cast<float>(window_height)};
     constexpr Mat4 projection{
-        1.0f / aspect, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f
+        1.0f / aspect, 0.0f, 0.0f, 0.0f,
+        0.0f,          1.0f, 0.0f, 0.0f,
+        0.0f,          0.0f, 1.0f, 0.0f,
+        0.0f,          0.0f, 0.0f, 1.0f
     };
 
     lwvl::Program vso{};
@@ -614,7 +683,7 @@ int run() {
 
     {
         // Some claim clock resolutions can be as coarse as 10ms. 2ms is 500fps so I think that should be workable.
-        using Period = std::chrono::steady_clock::period;
+        using Period = sc::steady_clock::period;
         if constexpr (constexpr auto resolution_ns = 1'000'000'000 * Period::num / Period::den; resolution_ns > 8'333'333) {
             std::cerr << "System clock resolution is too coarse for accurate tick calculations.\n";
         } else if constexpr (resolution_ns > 2'000'000) {
@@ -622,22 +691,180 @@ int run() {
         }
     }
 
+    MoveAnimation move_animations[MINER_COUNT] {};
+    MineAnimation mine_animations[MINER_COUNT] {};
+    bool board_needs_update {false};
+
     // Ticks to limit how often the miner can act.
     constexpr uint64_t tick_nanoseconds {50'000'000};
     // 64-bits is over 29,247,120,867 years worth of 50ms intervals
     uint64_t tick_count {0};
     uint64_t tick_overshoot {0};  // We may catch the frame at 0.001ms past tick_start. This keeps track of the nanoseconds lost this way.
-    auto tick_start {std::chrono::steady_clock::now()};  // steady clock guarantees t0<t1
+    auto tick_start {sc::steady_clock::now()};  // steady clock guarantees t0<t1
     while (!window.should_close()) {
-        const auto new_tick_start {std::chrono::steady_clock::now()};
-        const uint64_t frame_time = std::chrono::duration_cast<std::chrono::nanoseconds>(
+        const auto new_tick_start {sc::steady_clock::now()};
+        const int64_t frame_time {sc::duration_cast<sc::nanoseconds>(
             new_tick_start - tick_start
-        ).count();
+        ).count()};
+        assert(frame_time >= 0);
 
-        if (const uint64_t adj_time {frame_time + tick_overshoot}; adj_time >= tick_nanoseconds) {
+        if (const uint64_t adj_time {static_cast<uint64_t>(frame_time) + tick_overshoot}; adj_time >= tick_nanoseconds) {
             tick_start = new_tick_start;
             tick_count += adj_time / tick_nanoseconds;
             tick_overshoot = adj_time % tick_nanoseconds;  // mod should be free with above div.
+        }
+
+        // move miners
+        for (auto &miner : miners) {
+            // Check if miner needs to move.
+            if (miner.in_animation) {
+                switch (miner.animation) {
+                    case Miner::Animation::Move: {
+                        // Update the miner with the next frame of the animation.
+                        const MoveAnimation &move_animation {move_animations[miner.id]};
+                        const bool finished_animation {move_animation.end_time <= new_tick_start};
+
+                        if (finished_animation) {
+                            miner.next_move = tick_count + 20;
+                            miner.in_animation = false;
+                            miner.animation = Miner::Animation::None;
+                        }
+
+                        const auto current_time_point {finished_animation ? move_animation.end_time : new_tick_start};
+                        // Calculate lerp'd position.
+                        const auto t = static_cast<float>(easeInOut(delta(move_animation.start_time, current_time_point) / delta(move_animation.start_time, move_animation.end_time)));
+                        const float base_x = lerp(move_animation.start_x, move_animation.end_x, t);
+                        const float base_y = lerp(move_animation.start_y, move_animation.end_y, t);
+
+                        miner_vertices[miner.id] = MinerCell{
+                                {base_x, base_y, 0.0f, 0.0f},
+                                {base_x + cell_size, base_y, 1.0f, 0.0f},
+                                {base_x + cell_size, base_y + cell_size, 1.0f, 1.0f},
+                                {base_x, base_y + cell_size, 0.0f, 1.0f}
+                        };
+
+                        // miner.next_move = tick_count + 20;
+                        continue;
+                    }
+                    case Miner::Animation::Mine: {
+                        const MineAnimation &mine_animation {mine_animations[miner.id]};
+                        const bool finished_animation {mine_animation.end_time <= new_tick_start};
+
+                        if (finished_animation) {
+                            // miner.next_move = tick_count + 20; // idk which choice here.
+
+                            // Triggers a move animation right now. Would prefer this to be the miner's choice.
+                            board[mine_animation.target] = 0;
+                            board_needs_update = true;
+
+                            const std::ptrdiff_t current_m {miner.index / BOARD_SIZE};
+                            const std::ptrdiff_t current_n {miner.index % BOARD_SIZE};
+                            const std::ptrdiff_t m {mine_animation.target / BOARD_SIZE};
+                            const std::ptrdiff_t n {mine_animation.target % BOARD_SIZE};
+
+                            const float c_base_x = (static_cast<float>(current_n) + 0.5f) * cell_size - 0.5f;
+                            const float c_base_y = (static_cast<float>(current_m) + 0.5f) * cell_size - 0.5f;
+
+                            const float base_x = (static_cast<float>(n) + 0.5f) * cell_size - 0.5f;
+                            const float base_y = (static_cast<float>(m) + 0.5f) * cell_size - 0.5f;
+
+                            move_animations[miner.id] = MoveAnimation{
+                                c_base_x, c_base_y, base_x, base_y,
+                                new_tick_start, new_tick_start + sc::milliseconds(500)
+                            };
+
+                            miner.animation = Miner::Animation::Move;
+                            miner.index = mine_animation.target;
+
+                            std::cout << "Miner " << miner.id << " finished mining the cell (" << n << ", " << m << ")\n";
+                        }
+
+                        continue;
+                    }
+                    case Miner::Animation::None: {
+                        miner.in_animation = false;
+                        break;
+                    }
+                }
+            }
+
+            if (miner.next_move > tick_count) {
+                continue;
+            }
+
+            // Queue the move animation
+
+            // Find a new spot for the miner to move.
+            const ptrdiff_t direction = doom_random() % 5;
+            if (direction == 4) {
+                miner.next_move = tick_count + 20;
+                continue;
+            }
+
+            constexpr ptrdiff_t direction_board[] {-BOARD_SIZE, 1, BOARD_SIZE, -1};
+            constexpr ptrdiff_t direction_m[] {-1, +0, +1, +0};
+            constexpr ptrdiff_t direction_n[] {+0, +1, +0, -1};
+            assert(direction >= 0);
+            assert(direction < 4);
+
+            const std::ptrdiff_t current_m {miner.index / BOARD_SIZE};
+            const std::ptrdiff_t current_n {miner.index % BOARD_SIZE};
+            const std::ptrdiff_t m {current_m + direction_m[direction]};
+            const std::ptrdiff_t n {current_n + direction_n[direction]};
+
+            if (m < 0 || m >= BOARD_SIZE) { continue; }
+            if (n < 0 || n >= BOARD_SIZE) { continue; }
+            assert(current_m >= 0 && current_m < BOARD_SIZE);
+            assert(current_n >= 0 && current_n < BOARD_SIZE);
+
+            const std::ptrdiff_t board_index {miner.index + direction_board[direction]};
+            if (board[board_index] > 0) {
+                miner.in_animation = true;
+                miner.animation = Miner::Animation::Mine;
+                mine_animations[miner.id] = MineAnimation {
+                    board_index, new_tick_start, new_tick_start + sc::milliseconds(1000)
+                };
+                continue;
+            }
+
+            bool spot_taken {false};
+            for (const auto &other : miners) {
+                if (other.index == board_index) {
+                    spot_taken = true;
+                    break;
+                }
+            }
+
+            if (spot_taken) {
+                continue;
+            }
+
+            const float c_base_x = (static_cast<float>(current_n) + 0.5f) * cell_size - 0.5f;
+            const float c_base_y = (static_cast<float>(current_m) + 0.5f) * cell_size - 0.5f;
+
+            const float base_x = (static_cast<float>(n) + 0.5f) * cell_size - 0.5f;
+            const float base_y = (static_cast<float>(m) + 0.5f) * cell_size - 0.5f;
+
+            move_animations[miner.id] = MoveAnimation{
+                c_base_x, c_base_y, base_x, base_y,
+                new_tick_start, new_tick_start + sc::milliseconds(500)
+            };
+            miner.in_animation = true;
+            miner.animation = Miner::Animation::Move;
+            miner.index = board_index;
+            // miner.next_move = tick_count + 20;
+        }
+        lwvl::Buffer::fill_slice(miner_pipeline.vbo, miner_vertices.begin(), miner_vertices.end());
+        std::cout.flush();
+
+        if (board_needs_update) {
+            // do stuff.
+            for (std::ptrdiff_t i = 0; i < GRID_SIZE; ++i) {
+                for (std::ptrdiff_t j = 0; j < GRID_SIZE; ++j) {
+                    grid_tex_coords[i * GRID_SIZE + j] = STONE_TEXTURE_MAP[select_texture(i, j, board.tether())];
+                }
+            }
+            lwvl::Buffer::fill_slice(grid_pipeline.vtcbo, grid_tex_coords.begin(), grid_tex_coords.end());
         }
 
         core::Window::poll_events();
@@ -673,16 +900,23 @@ int run() {
         lwvl::Program::activate(vso);
         //glProgramUniform1f(static_cast<GLuint>(grid_pipeline.vso), u_time, float(delta(time_point)));
 
+        glProgramUniform1i(GLuint{vso}, u_use_texture, 1);
         glProgramUniform1i(GLuint{vso}, u_texture, 0);
         lwvl::VertexArray::activate(grid_pipeline.vao);
         lwvl::draw_elements(GL_TRIANGLES, GRID_SIZE * GRID_SIZE * 6, GL_UNSIGNED_INT);
 
-        lwvl::VertexArray::activate(sprite_pipeline.vao);
-        lwvl::draw_elements(GL_TRIANGLES, static_cast<GLsizei>(sprite_indices.size() * 6), GL_UNSIGNED_INT);
+        // lwvl::VertexArray::activate(sprite_pipeline.vao);
+        // lwvl::draw_elements(GL_TRIANGLES, static_cast<GLsizei>(sprite_indices.size() * 6), GL_UNSIGNED_INT);
 
         glProgramUniform1i(GLuint{vso}, u_texture, 1);
         lwvl::VertexArray::activate(miner_pipeline.vao);
-        lwvl::draw_arrays(GL_TRIANGLES, static_cast<GLsizei>(miner_vertices.size() * 2));
+        lwvl::draw_arrays(GL_TRIANGLES, static_cast<GLsizei>(miner_vertices.size() * 6));
+
+        // glPolygonMode( GL_FRONT_AND_BACK, GL_LINE );
+        // glProgramUniform1i(GLuint{vso}, u_use_texture, 0);
+        // lwvl::VertexArray::activate(grid_pipeline.vao);
+        // lwvl::draw_elements(GL_TRIANGLES, GRID_SIZE * GRID_SIZE * 6, GL_UNSIGNED_INT);
+        // glPolygonMode( GL_FRONT_AND_BACK, GL_FILL );
 
         lwvl::Program::clear();
 

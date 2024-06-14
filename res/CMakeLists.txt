@@ -18,6 +18,6 @@ export_resources(
     DIRECTORY Textures
     DEPENDS
         dungeon-tiles.png
-        pickaxe.png
+        diamond_pickaxe.png
         ATTRIBUTION.md
 )
